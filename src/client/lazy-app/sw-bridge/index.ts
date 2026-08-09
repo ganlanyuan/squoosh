@@ -3,6 +3,7 @@ import type SnackBarElement from 'shared/custom-els/snack-bar';
 import { get, set } from 'idb-keyval';
 
 import swUrl from 'service-worker:sw';
+import { isTauri } from 'shared/tauri';
 
 /** Tell the service worker to skip waiting */
 async function skipWaiting() {
@@ -56,18 +57,6 @@ export function getSharedImage(): Promise<File> {
     // the file.
     navigator.serviceWorker.controller!.postMessage('share-ready');
   });
-}
-
-/**
- * Are we running inside the native desktop app (Tauri) rather than a browser?
- */
-function isTauri(): boolean {
-  return (
-    typeof window !== 'undefined' &&
-    ('__TAURI_INTERNALS__' in window ||
-      '__TAURI__' in window ||
-      (window as any).isTauri === true)
-  );
 }
 
 /** Unregister any service workers and drop their caches. */

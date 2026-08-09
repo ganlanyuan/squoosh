@@ -54,6 +54,21 @@
   }
 }
 
+.batch-btn {
+  composes: unbutton from global;
+  cursor: pointer;
+  border: 2px solid var(--accent);
+  color: var(--accent);
+  border-radius: 100px;
+  padding: 0.5rem 1.4rem;
+  font-size: 1.1rem;
+
+  &:hover {
+    background: var(--accent);
+    color: var(--white);
+  }
+}
+
 .demo-title {
   margin: 0;
   font-size: 1.4rem;

@@ -27,7 +27,9 @@ interface State {
   awaitingShareTarget: boolean;
   file?: File;
   isEditorOpen: Boolean;
+  isBatchOpen: boolean;
   Compress?: typeof import('client/lazy-app/Compress').default;
+  Batch?: typeof import('client/lazy-app/Batch').default;
 }
 
 export default class App extends Component<Props, State> {
@@ -36,8 +38,10 @@ export default class App extends Component<Props, State> {
       'share-target',
     ),
     isEditorOpen: false,
+    isBatchOpen: false,
     file: undefined,
     Compress: undefined,
+    Batch: undefined,
   };
 
   snackbar?: SnackBarElement;
@@ -86,6 +90,23 @@ export default class App extends Component<Props, State> {
     this.setState({ file });
   };
 
+  private openBatch = async () => {
+    if (!this.state.Batch) {
+      try {
+        const module = await import('client/lazy-app/Batch');
+        this.setState({ Batch: module.default });
+      } catch (err) {
+        this.showSnack('Failed to load batch mode');
+        return;
+      }
+    }
+    this.setState({ isBatchOpen: true });
+  };
+
+  private closeBatch = () => {
+    this.setState({ isBatchOpen: false });
+  };
+
   private showSnack = (
     message: string,
     options: SnackOptions = {},
@@ -109,21 +130,39 @@ export default class App extends Component<Props, State> {
 
   render(
     {}: Props,
-    { file, isEditorOpen, Compress, awaitingShareTarget }: State,
+    {
+      file,
+      isEditorOpen,
+      isBatchOpen,
+      Compress,
+      Batch,
+      awaitingShareTarget,
+    }: State,
   ) {
-    const showSpinner = awaitingShareTarget || (isEditorOpen && !Compress);
+    const showSpinner =
+      awaitingShareTarget ||
+      (isEditorOpen && !Compress) ||
+      (isBatchOpen && !Batch);
 
     return (
       <div class={style.app}>
         <file-drop onfiledrop={this.onFileDrop} class={style.drop}>
           {showSpinner ? (
             <loading-spinner class={style.appLoader} />
+          ) : isBatchOpen ? (
+            Batch && (
+              <Batch onBack={this.closeBatch} showSnack={this.showSnack} />
+            )
           ) : isEditorOpen ? (
             Compress && (
               <Compress file={file!} showSnack={this.showSnack} onBack={back} />
             )
           ) : (
-            <Intro onFile={this.onIntroPickFile} showSnack={this.showSnack} />
+            <Intro
+              onFile={this.onIntroPickFile}
+              onBatch={this.openBatch}
+              showSnack={this.showSnack}
+            />
           )}
           <snack-bar ref={linkRef(this, 'snackbar')} />
         </file-drop>

@@ -13,6 +13,7 @@ import logoIcon from 'url:./imgs/demos/icon-demo-logo.png';
 import * as style from './style.css';
 import type SnackBarElement from 'shared/custom-els/snack-bar';
 import 'shared/custom-els/snack-bar';
+import { isTauri } from 'shared/tauri';
 
 const demos = [
   {
@@ -47,6 +48,7 @@ const demos = [
 
 interface Props {
   onFile?: (file: File) => void;
+  onBatch?: () => void;
   showSnack?: SnackBarElement['showSnackbar'];
 }
 interface State {
@@ -105,6 +107,11 @@ export default class Intro extends Component<Props, State> {
               select an image
             </button>
           </h1>
+          {isTauri() && this.props.onBatch && (
+            <button class={style.batchBtn} onClick={this.props.onBatch}>
+              Batch process a folder
+            </button>
+          )}
           <p class={style.demoTitle}>Or try one of these:</p>
           <ul class={style.demos}>
             {demos.map((demo, i) => (

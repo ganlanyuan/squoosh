@@ -58,5 +58,8 @@
     "*.{js,css,json,md,ts,tsx}": "prettier --write",
     "*.{c,h,cpp,hpp}": "clang-format -i",
     "*.rs": "rustfmt"
+  },
+  "dependencies": {
+    "@tauri-apps/plugin-dialog": "^2.7.2"
   }
 }
