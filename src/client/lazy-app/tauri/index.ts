@@ -104,3 +104,8 @@ export function writeFileBytes(
 export function pathExists(path: string): Promise<boolean> {
   return invoke<boolean>('path_exists', { path });
 }
+
+/** Open a URL in the OS default browser (rather than the app webview). */
+export function openExternal(url: string): Promise<void> {
+  return invoke('open_url', { url });
+}

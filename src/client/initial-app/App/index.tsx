@@ -175,6 +175,16 @@ export default class App extends Component<Props, State> {
     }
   };
 
+  // Open external links in the OS browser instead of navigating the webview.
+  private onExternalLink = async (url: string) => {
+    try {
+      const { openExternal } = await import('client/lazy-app/tauri');
+      await openExternal(url);
+    } catch (err) {
+      this.showSnack("Couldn't open the link");
+    }
+  };
+
   private openBatch = async () => {
     if (!this.state.Batch) {
       try {
@@ -257,6 +267,7 @@ export default class App extends Component<Props, State> {
               onFile={this.onIntroPickFile}
               onBatch={this.openBatch}
               onPickImage={isTauri() ? this.onIntroOpenNative : undefined}
+              onExternalLink={isTauri() ? this.onExternalLink : undefined}
               showSnack={this.showSnack}
             />
           )}

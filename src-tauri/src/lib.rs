@@ -134,6 +134,12 @@ fn path_exists(path: String) -> bool {
     Path::new(&path).exists()
 }
 
+/// Open a URL (or path) in the OS default handler, e.g. links in the browser.
+#[tauri::command]
+fn open_url(url: String) -> Result<(), String> {
+    open::that(url).map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -143,7 +149,8 @@ pub fn run() {
             collect_dropped,
             read_file,
             write_file,
-            path_exists
+            path_exists,
+            open_url
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

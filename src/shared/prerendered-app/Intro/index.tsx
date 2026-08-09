@@ -51,6 +51,8 @@ interface Props {
   onBatch?: () => void;
   /** When set (desktop app), used instead of the HTML file input. */
   onPickImage?: () => void;
+  /** When set (desktop app), opens external links in the OS browser. */
+  onExternalLink?: (url: string) => void;
   showSnack?: SnackBarElement['showSnackbar'];
 }
 interface State {
@@ -75,6 +77,15 @@ export default class Intro extends Component<Props, State> {
       return;
     }
     this.fileInput!.click();
+  };
+
+  // In the desktop app, open external links in the OS browser rather than
+  // navigating the webview. On the web, let the anchor behave normally.
+  private onFooterClick = (event: MouseEvent, url: string) => {
+    if (this.props.onExternalLink) {
+      event.preventDefault();
+      this.props.onExternalLink(url);
+    }
   };
 
   private onDemoClick = async (index: number) => {
@@ -153,18 +164,36 @@ export default class Intro extends Component<Props, State> {
           <a
             class={style.footerLink}
             href="https://github.com/GoogleChromeLabs/squoosh"
+            onClick={(e) =>
+              this.onFooterClick(
+                e,
+                'https://github.com/GoogleChromeLabs/squoosh',
+              )
+            }
           >
             View the code
           </a>
           <a
             class={style.footerLink}
             href="https://github.com/GoogleChromeLabs/squoosh/issues/new"
+            onClick={(e) =>
+              this.onFooterClick(
+                e,
+                'https://github.com/GoogleChromeLabs/squoosh/issues/new',
+              )
+            }
           >
             Report a bug
           </a>
           <a
             class={style.footerLink}
             href="https://github.com/GoogleChromeLabs/squoosh/blob/dev/README.md#privacy"
+            onClick={(e) =>
+              this.onFooterClick(
+                e,
+                'https://github.com/GoogleChromeLabs/squoosh/blob/dev/README.md#privacy',
+              )
+            }
           >
             Privacy
           </a>
