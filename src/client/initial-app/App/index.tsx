@@ -6,7 +6,6 @@ import { h, Component } from 'preact';
 
 import { linkRef } from 'shared/prerendered-app/util';
 import { isTauri, listenNativeDrop } from 'shared/tauri';
-import { isImageFile } from 'client/lazy-app/drop';
 import * as style from './style.css';
 import 'add-css:./style.css';
 import 'file-drop-element';
@@ -32,6 +31,8 @@ interface State {
   isBatchOpen: boolean;
   /** Native drag-drop hover state (Tauri only; drives the drop overlay). */
   dragging: boolean;
+  /** Paths from a drop that opened Batch, handed to Batch on mount. */
+  pendingBatchPaths?: string[];
   Compress?: typeof import('client/lazy-app/Compress').default;
   Batch?: typeof import('client/lazy-app/Batch').default;
 }
@@ -51,6 +52,9 @@ export default class App extends Component<Props, State> {
 
   snackbar?: SnackBarElement;
   private unlistenDrop?: () => void;
+  /** The mounted Batch instance, for forwarding drops while it's open. */
+  private batchInstance: { handleDroppedPaths(paths: string[]): void } | null =
+    null;
 
   constructor() {
     super();
@@ -103,8 +107,7 @@ export default class App extends Component<Props, State> {
   }
 
   private onNativeDragEnter = () => {
-    // Batch owns its own drop highlight; only show the app overlay elsewhere.
-    if (!this.state.isBatchOpen) this.setState({ dragging: true });
+    this.setState({ dragging: true });
   };
 
   private onNativeDragLeave = () => {
@@ -112,16 +115,29 @@ export default class App extends Component<Props, State> {
   };
 
   private onNativeDrop = async (paths: string[]) => {
-    if (this.state.isBatchOpen) return; // Batch handles its own drops.
-    const imagePath = paths.find((p) => isImageFile(p));
-    if (!imagePath) return;
+    // Batch is open: forward the drop to it (App owns the only native listener,
+    // so Batch never registers its own — that deadlocked WebView2 mid-drop).
+    if (this.state.isBatchOpen) {
+      this.batchInstance?.handleDroppedPaths(paths);
+      return;
+    }
     try {
-      const { readFileBytes } = await import('client/lazy-app/tauri');
-      const bytes = await readFileBytes(imagePath);
-      const name = imagePath.split(/[\\/]/).pop() || 'image';
-      this.onIntroPickFile(new File([bytes], name));
+      const { collectDropped, readFileBytes } = await import(
+        'client/lazy-app/tauri'
+      );
+      const { images, folders } = await collectDropped(paths, true);
+      // Multiple images or any folder → batch mode; a single image → edit it.
+      if (folders.length > 0 || images.length > 1) {
+        this.setState({ pendingBatchPaths: paths });
+        this.openBatch();
+        return;
+      }
+      const single = images[0];
+      if (!single) return;
+      const bytes = await readFileBytes(single.path);
+      this.onIntroPickFile(new File([bytes], single.name));
     } catch (err) {
-      this.showSnack("Couldn't open the dropped file");
+      this.showSnack("Couldn't open the dropped items");
     }
   };
 
@@ -151,7 +167,7 @@ export default class App extends Component<Props, State> {
   };
 
   private closeBatch = () => {
-    this.setState({ isBatchOpen: false });
+    this.setState({ isBatchOpen: false, pendingBatchPaths: undefined });
   };
 
   private showSnack = (
@@ -182,6 +198,7 @@ export default class App extends Component<Props, State> {
       isEditorOpen,
       isBatchOpen,
       dragging,
+      pendingBatchPaths,
       Compress,
       Batch,
       awaitingShareTarget,
@@ -202,7 +219,12 @@ export default class App extends Component<Props, State> {
             <loading-spinner class={style.appLoader} />
           ) : isBatchOpen ? (
             Batch && (
-              <Batch onBack={this.closeBatch} showSnack={this.showSnack} />
+              <Batch
+                ref={(inst) => (this.batchInstance = inst as any)}
+                onBack={this.closeBatch}
+                showSnack={this.showSnack}
+                initialPaths={pendingBatchPaths}
+              />
             )
           ) : isEditorOpen ? (
             Compress && (

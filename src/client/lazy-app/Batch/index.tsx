@@ -20,7 +20,7 @@ import {
   writeFileBytes,
   pathExists,
 } from '../tauri';
-import { isTauri, listenNativeDrop } from 'shared/tauri';
+import { isTauri } from 'shared/tauri';
 import prettyBytes from '../Compress/Results/pretty-bytes';
 import type SnackBarElement from 'shared/custom-els/snack-bar';
 
@@ -44,6 +44,8 @@ interface BatchItem {
 interface Props {
   onBack: () => void;
   showSnack: SnackBarElement['showSnackbar'];
+  /** Paths from the drop that opened Batch; queued on mount. */
+  initialPaths?: string[];
 }
 
 interface State {
@@ -64,8 +66,6 @@ interface State {
    * completed state. While it still matches the current inputs, Start stays
    * disabled to prevent an accidental re-run overwriting the outputs. */
   completedSignature: string | null;
-  /** Native drag-drop hover state (Tauri only; highlights the drop zone). */
-  dragging: boolean;
 }
 
 const MAX_WORKERS = Math.min(4, navigator.hardwareConcurrency || 4);
@@ -98,26 +98,21 @@ export default class Batch extends Component<Props, State> {
     running: false,
     doneCount: 0,
     completedSignature: null,
-    dragging: false,
   };
 
-  private unlistenDrop?: () => void;
-
   componentDidMount() {
-    // The desktop window uses native OS drag-drop, so the HTML5 handlers below
-    // never fire there — wire up native drops (which expose real disk paths).
-    if (isTauri()) {
-      listenNativeDrop({
-        onEnter: () => {
-          if (!this.state.running) this.setState({ dragging: true });
-        },
-        onLeave: () => this.setState({ dragging: false }),
-        onDrop: this.onNativeDrop,
-      }).then((unlisten) => {
-        this.unlistenDrop = unlisten;
-      });
+    // Native drops are received by App's single listener and forwarded via
+    // handleDroppedPaths — Batch must NOT register its own drag-drop listener
+    // (doing so mid-drop froze WebView2). Just queue the drop that opened us.
+    if (isTauri() && this.props.initialPaths?.length) {
+      this.onNativeDrop(this.props.initialPaths);
     }
   }
+
+  /** Entry point for native drops, called by App while Batch is open. */
+  handleDroppedPaths = (paths: string[]) => {
+    this.onNativeDrop(paths);
+  };
 
   private onNativeDrop = async (paths: string[]) => {
     if (this.state.running) return;
@@ -499,7 +494,6 @@ export default class Batch extends Component<Props, State> {
 
   componentWillUnmount() {
     this.abortController.abort();
-    this.unlistenDrop?.();
   }
 
   render(
@@ -519,7 +513,6 @@ export default class Batch extends Component<Props, State> {
       running,
       doneCount,
       completedSignature,
-      dragging,
     }: State,
   ) {
     const EncoderOptions = (encoderMap[encoderType] as any).Options;
@@ -535,7 +528,7 @@ export default class Batch extends Component<Props, State> {
 
     return (
       <div
-        class={`${style.batch}${dragging ? ` ${style.dragging}` : ''}`}
+        class={style.batch}
         onDragOver={this.onDragOver}
         onDrop={this.onDrop}
       >

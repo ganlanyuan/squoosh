@@ -8,11 +8,6 @@
   color: var(--off-black);
 }
 
-.dragging {
-  outline: 3px dashed var(--pink);
-  outline-offset: -8px;
-}
-
 .hide {
   display: none;
 }
