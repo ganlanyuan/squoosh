@@ -6,6 +6,7 @@ import { h, Component } from 'preact';
 
 import { linkRef } from 'shared/prerendered-app/util';
 import { isTauri, listenNativeDrop } from 'shared/tauri';
+import { getLastDir, setLastDir, dirOf } from 'shared/last-dir';
 import * as style from './style.css';
 import 'add-css:./style.css';
 import 'file-drop-element';
@@ -153,6 +154,27 @@ export default class App extends Component<Props, State> {
     this.setState({ file });
   };
 
+  // Native "select an image" for the desktop app: remembers the folder and
+  // reads the chosen file from disk (the HTML file input can't do either).
+  private onIntroOpenNative = async () => {
+    try {
+      const { openImages, readFileBytes } = await import(
+        'client/lazy-app/tauri'
+      );
+      const [path] = await openImages({
+        multiple: false,
+        defaultPath: getLastDir('source'),
+      });
+      if (!path) return;
+      setLastDir('source', dirOf(path));
+      const bytes = await readFileBytes(path);
+      const name = path.split(/[\\/]/).pop() || 'image';
+      this.onIntroPickFile(new File([bytes], name));
+    } catch (err) {
+      this.showSnack("Couldn't open the image");
+    }
+  };
+
   private openBatch = async () => {
     if (!this.state.Batch) {
       try {
@@ -234,6 +256,7 @@ export default class App extends Component<Props, State> {
             <Intro
               onFile={this.onIntroPickFile}
               onBatch={this.openBatch}
+              onPickImage={isTauri() ? this.onIntroOpenNative : undefined}
               showSnack={this.showSnack}
             />
           )}

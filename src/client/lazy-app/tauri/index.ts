@@ -1,6 +1,22 @@
 import { invoke } from '@tauri-apps/api/core';
 import { open, save } from '@tauri-apps/plugin-dialog';
 
+const IMAGE_EXTS = [
+  'jpg',
+  'jpeg',
+  'png',
+  'webp',
+  'avif',
+  'gif',
+  'bmp',
+  'tiff',
+  'tif',
+  'svg',
+  'qoi',
+  'jxl',
+  'wp2',
+];
+
 export interface ImageEntry {
   /** Absolute path on disk. */
   path: string;
@@ -13,10 +29,33 @@ export interface ImageEntry {
 }
 
 /** Show a native folder picker. Returns the chosen path, or null if cancelled. */
-export async function pickFolder(title: string): Promise<string | null> {
-  const result = await open({ directory: true, multiple: false, title });
+export async function pickFolder(
+  title: string,
+  defaultPath?: string,
+): Promise<string | null> {
+  const result = await open({
+    directory: true,
+    multiple: false,
+    title,
+    defaultPath,
+  });
   if (result == null) return null;
   return Array.isArray(result) ? result[0] : result;
+}
+
+/** Native image-file picker. Returns the chosen absolute path(s). */
+export async function openImages(opts: {
+  multiple: boolean;
+  defaultPath?: string;
+}): Promise<string[]> {
+  const result = await open({
+    directory: false,
+    multiple: opts.multiple,
+    defaultPath: opts.defaultPath,
+    filters: [{ name: 'Images', extensions: IMAGE_EXTS }],
+  });
+  if (result == null) return [];
+  return Array.isArray(result) ? result : [result];
 }
 
 /** Show a native "save file" dialog. Returns the chosen path, or null. */

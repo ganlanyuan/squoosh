@@ -49,6 +49,8 @@ const demos = [
 interface Props {
   onFile?: (file: File) => void;
   onBatch?: () => void;
+  /** When set (desktop app), used instead of the HTML file input. */
+  onPickImage?: () => void;
   showSnack?: SnackBarElement['showSnackbar'];
 }
 interface State {
@@ -68,6 +70,10 @@ export default class Intro extends Component<Props, State> {
   };
 
   private onOpenClick = () => {
+    if (this.props.onPickImage) {
+      this.props.onPickImage();
+      return;
+    }
     this.fileInput!.click();
   };
 

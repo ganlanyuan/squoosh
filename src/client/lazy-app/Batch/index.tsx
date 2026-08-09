@@ -14,6 +14,7 @@ import {
 import { Options as QuantizeOptionsComponent } from 'features/processors/quantize/client';
 import {
   pickFolder,
+  openImages,
   listImages,
   collectDropped,
   readFileBytes,
@@ -21,6 +22,7 @@ import {
   pathExists,
 } from '../tauri';
 import { isTauri } from 'shared/tauri';
+import { getLastDir, setLastDir, dirOf } from 'shared/last-dir';
 import prettyBytes from '../Compress/Results/pretty-bytes';
 import type SnackBarElement from 'shared/custom-els/snack-bar';
 
@@ -174,7 +176,34 @@ export default class Batch extends Component<Props, State> {
     });
   }
 
-  private onAddFilesClick = () => this.fileInput!.click();
+  private onAddFilesClick = async () => {
+    // In Tauri use the native picker (remembers the folder, gives real paths).
+    if (isTauri()) {
+      try {
+        const paths = await openImages({
+          multiple: true,
+          defaultPath: getLastDir('source'),
+        });
+        if (paths.length === 0) return;
+        setLastDir('source', dirOf(paths[0]));
+        const { images } = await collectDropped(paths, this.state.recursive);
+        const items: BatchItem[] = images.map((entry) => ({
+          id: `f${nextId++}`,
+          name: entry.name,
+          size: entry.size,
+          rel: entry.rel,
+          path: entry.path,
+          status: 'queued',
+        }));
+        if (items.length) this.addItems(items);
+        else this.props.showSnack('No images selected');
+      } catch (err) {
+        this.props.showSnack(`Couldn't add files: ${err}`);
+      }
+      return;
+    }
+    this.fileInput!.click();
+  };
 
   private onFilesChange = (event: Event) => {
     const input = event.target as HTMLInputElement;
@@ -275,8 +304,12 @@ export default class Batch extends Component<Props, State> {
 
   private onAddFolderClick = async () => {
     try {
-      const dir = await pickFolder('Choose a folder of images');
+      const dir = await pickFolder(
+        'Choose a folder of images',
+        getLastDir('source'),
+      );
       if (!dir) return;
+      setLastDir('source', dir);
       const entries = await listImages(dir, this.state.recursive);
       const items: BatchItem[] = entries.map((entry) => ({
         id: `d${nextId++}`,
@@ -300,8 +333,14 @@ export default class Batch extends Component<Props, State> {
 
   private onChooseOutputClick = async () => {
     try {
-      const dir = await pickFolder('Choose an output folder');
-      if (dir) this.setState({ outputFolder: dir });
+      const dir = await pickFolder(
+        'Choose an output folder',
+        getLastDir('output'),
+      );
+      if (dir) {
+        setLastDir('output', dir);
+        this.setState({ outputFolder: dir });
+      }
     } catch (err) {
       this.props.showSnack(`Couldn't choose folder: ${err}`);
     }
