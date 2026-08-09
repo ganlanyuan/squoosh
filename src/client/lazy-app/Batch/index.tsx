@@ -581,8 +581,8 @@ export default class Batch extends Component<Props, State> {
             <ul class={style.queue}>
               {items.map((item) => (
                 <li class={style.item} key={item.id}>
-                  <span class={style.itemName} title={item.rel}>
-                    {item.rel}
+                  <span class={style.itemName} title={item.path || item.rel}>
+                    {item.path || item.rel}
                   </span>
                   <span class={style.itemSize}>{prettySize(item.size)}</span>
                   <span class={`${style.status} ${style[item.status]}`}>

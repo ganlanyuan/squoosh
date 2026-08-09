@@ -94,6 +94,9 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  /* Paths can be long — truncate from the left so the file name stays visible. */
+  direction: rtl;
+  text-align: left;
 }
 
 .item-size {
