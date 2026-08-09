@@ -5,6 +5,8 @@ import type { SnackOptions } from 'shared/custom-els/snack-bar';
 import { h, Component } from 'preact';
 
 import { linkRef } from 'shared/prerendered-app/util';
+import { isTauri, listenNativeDrop } from 'shared/tauri';
+import { isImageFile } from 'client/lazy-app/drop';
 import * as style from './style.css';
 import 'add-css:./style.css';
 import 'file-drop-element';
@@ -28,6 +30,8 @@ interface State {
   file?: File;
   isEditorOpen: Boolean;
   isBatchOpen: boolean;
+  /** Native drag-drop hover state (Tauri only; drives the drop overlay). */
+  dragging: boolean;
   Compress?: typeof import('client/lazy-app/Compress').default;
   Batch?: typeof import('client/lazy-app/Batch').default;
 }
@@ -39,12 +43,14 @@ export default class App extends Component<Props, State> {
     ),
     isEditorOpen: false,
     isBatchOpen: false,
+    dragging: false,
     file: undefined,
     Compress: undefined,
     Batch: undefined,
   };
 
   snackbar?: SnackBarElement;
+  private unlistenDrop?: () => void;
 
   constructor() {
     super();
@@ -77,6 +83,47 @@ export default class App extends Component<Props, State> {
 
     window.addEventListener('popstate', this.onPopState);
   }
+
+  componentDidMount() {
+    // In the desktop app the window uses native OS drag-drop (dragDropEnabled),
+    // so the HTML5 <file-drop> below never fires there — wire up native drops.
+    if (isTauri()) {
+      listenNativeDrop({
+        onEnter: this.onNativeDragEnter,
+        onLeave: this.onNativeDragLeave,
+        onDrop: this.onNativeDrop,
+      }).then((unlisten) => {
+        this.unlistenDrop = unlisten;
+      });
+    }
+  }
+
+  componentWillUnmount() {
+    this.unlistenDrop?.();
+  }
+
+  private onNativeDragEnter = () => {
+    // Batch owns its own drop highlight; only show the app overlay elsewhere.
+    if (!this.state.isBatchOpen) this.setState({ dragging: true });
+  };
+
+  private onNativeDragLeave = () => {
+    this.setState({ dragging: false });
+  };
+
+  private onNativeDrop = async (paths: string[]) => {
+    if (this.state.isBatchOpen) return; // Batch handles its own drops.
+    const imagePath = paths.find((p) => isImageFile(p));
+    if (!imagePath) return;
+    try {
+      const { readFileBytes } = await import('client/lazy-app/tauri');
+      const bytes = await readFileBytes(imagePath);
+      const name = imagePath.split(/[\\/]/).pop() || 'image';
+      this.onIntroPickFile(new File([bytes], name));
+    } catch (err) {
+      this.showSnack("Couldn't open the dropped file");
+    }
+  };
 
   private onFileDrop = ({ files }: FileDropEvent) => {
     if (!files || files.length === 0) return;
@@ -134,6 +181,7 @@ export default class App extends Component<Props, State> {
       file,
       isEditorOpen,
       isBatchOpen,
+      dragging,
       Compress,
       Batch,
       awaitingShareTarget,
@@ -146,7 +194,10 @@ export default class App extends Component<Props, State> {
 
     return (
       <div class={style.app}>
-        <file-drop onfiledrop={this.onFileDrop} class={style.drop}>
+        <file-drop
+          onfiledrop={this.onFileDrop}
+          class={`${style.drop}${dragging ? ' drop-valid' : ''}`}
+        >
           {showSpinner ? (
             <loading-spinner class={style.appLoader} />
           ) : isBatchOpen ? (

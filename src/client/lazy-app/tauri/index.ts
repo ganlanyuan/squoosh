@@ -27,6 +27,21 @@ export function listImages(
   return invoke<ImageEntry[]>('list_images', { dir, recursive });
 }
 
+export interface DropResult {
+  /** Image files found among the dropped paths (folders expanded). */
+  images: ImageEntry[];
+  /** Absolute paths of the dropped entries that were folders. */
+  folders: string[];
+}
+
+/** Classify natively-dropped paths (files and/or folders) into images + folders. */
+export function collectDropped(
+  paths: string[],
+  recursive: boolean,
+): Promise<DropResult> {
+  return invoke<DropResult>('collect_dropped', { paths, recursive });
+}
+
 /** Read a file's bytes from disk. */
 export async function readFileBytes(path: string): Promise<Uint8Array> {
   const buffer = await invoke<ArrayBuffer>('read_file', { path });

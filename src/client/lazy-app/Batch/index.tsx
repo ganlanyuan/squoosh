@@ -15,10 +15,12 @@ import { Options as QuantizeOptionsComponent } from 'features/processors/quantiz
 import {
   pickFolder,
   listImages,
+  collectDropped,
   readFileBytes,
   writeFileBytes,
   pathExists,
 } from '../tauri';
+import { isTauri, listenNativeDrop } from 'shared/tauri';
 import prettyBytes from '../Compress/Results/pretty-bytes';
 import type SnackBarElement from 'shared/custom-els/snack-bar';
 
@@ -62,6 +64,8 @@ interface State {
    * completed state. While it still matches the current inputs, Start stays
    * disabled to prevent an accidental re-run overwriting the outputs. */
   completedSignature: string | null;
+  /** Native drag-drop hover state (Tauri only; highlights the drop zone). */
+  dragging: boolean;
 }
 
 const MAX_WORKERS = Math.min(4, navigator.hardwareConcurrency || 4);
@@ -94,6 +98,51 @@ export default class Batch extends Component<Props, State> {
     running: false,
     doneCount: 0,
     completedSignature: null,
+    dragging: false,
+  };
+
+  private unlistenDrop?: () => void;
+
+  componentDidMount() {
+    // The desktop window uses native OS drag-drop, so the HTML5 handlers below
+    // never fire there — wire up native drops (which expose real disk paths).
+    if (isTauri()) {
+      listenNativeDrop({
+        onEnter: () => {
+          if (!this.state.running) this.setState({ dragging: true });
+        },
+        onLeave: () => this.setState({ dragging: false }),
+        onDrop: this.onNativeDrop,
+      }).then((unlisten) => {
+        this.unlistenDrop = unlisten;
+      });
+    }
+  }
+
+  private onNativeDrop = async (paths: string[]) => {
+    if (this.state.running) return;
+    try {
+      const { images, folders } = await collectDropped(
+        paths,
+        this.state.recursive,
+      );
+      const items: BatchItem[] = images.map((entry) => ({
+        id: `n${nextId++}`,
+        name: entry.name,
+        size: entry.size,
+        rel: entry.rel,
+        path: entry.path,
+        status: 'queued',
+      }));
+      // Auto-fill the output folder from a dropped folder, only if unset.
+      if (folders.length > 0 && !this.state.outputFolder) {
+        this.setState({ outputFolder: folders[0] });
+      }
+      if (items.length) this.addItems(items);
+      else this.props.showSnack('No images in the dropped items');
+    } catch (err) {
+      this.props.showSnack(`Couldn't read dropped items: ${err}`);
+    }
   };
 
   private settingsSignature(): string {
@@ -246,6 +295,8 @@ export default class Batch extends Component<Props, State> {
         this.props.showSnack('No images found in that folder');
         return;
       }
+      // Auto-fill the output folder from the added folder, only if unset.
+      if (!this.state.outputFolder) this.setState({ outputFolder: dir });
       this.addItems(items);
     } catch (err) {
       this.props.showSnack(`Couldn't read folder: ${err}`);
@@ -300,12 +351,24 @@ export default class Batch extends Component<Props, State> {
     };
   }
 
-  private outputPathFor(item: BatchItem): string {
+  private outputPathFor(item: BatchItem): string | null {
     const { outputFolder, preserveStructure, suffix, encoderType } = this.state;
     const ext = encoderMap[encoderType].meta.extension;
     const base = item.name.replace(/\.[^.]*$/, '');
-    const dir = preserveStructure ? item.rel.replace(/[^/]*$/, '') : '';
-    return `${outputFolder}/${dir}${base}${suffix}.${ext}`.replace(/\/+/g, '/');
+    if (outputFolder) {
+      const dir = preserveStructure ? item.rel.replace(/[^/]*$/, '') : '';
+      return `${outputFolder}/${dir}${base}${suffix}.${ext}`.replace(
+        /\/+/g,
+        '/',
+      );
+    }
+    // No output folder → write beside the original, using the source's own
+    // folder. Needs an absolute source path (drag/folder items have one).
+    if (item.path) {
+      const srcDir = item.path.replace(/[^/\\]+$/, ''); // keep trailing separator
+      return `${srcDir}${base}${suffix}.${ext}`;
+    }
+    return null;
   }
 
   private async fileFor(item: BatchItem): Promise<File> {
@@ -320,10 +383,20 @@ export default class Batch extends Component<Props, State> {
     }));
   }
 
+  /** Whether every queued item can be written somewhere. */
+  private canWrite(): boolean {
+    const { outputFolder, items } = this.state;
+    if (outputFolder) return true;
+    // No output folder → each item must have a source path to write beside.
+    return items.length > 0 && items.every((it) => !!it.path);
+  }
+
   private onStartClick = async () => {
     if (this.state.running) return;
-    if (!this.state.outputFolder) {
-      this.props.showSnack('Choose an output folder first');
+    if (!this.canWrite()) {
+      this.props.showSnack(
+        'Choose an output folder, or add images from folders to save beside the originals',
+      );
       return;
     }
 
@@ -371,6 +444,14 @@ export default class Batch extends Component<Props, State> {
         this.setItem(item.id, { status: 'processing' });
         try {
           const outPath = this.outputPathFor(item);
+          if (!outPath) {
+            this.setItem(item.id, {
+              status: 'error',
+              error: 'No output folder set',
+            });
+            this.setState((s) => ({ doneCount: s.doneCount + 1 }));
+            continue;
+          }
           if (this.state.skipExisting && (await pathExists(outPath))) {
             this.setItem(item.id, { status: 'skipped' });
             this.setState((s) => ({ doneCount: s.doneCount + 1 }));
@@ -418,6 +499,7 @@ export default class Batch extends Component<Props, State> {
 
   componentWillUnmount() {
     this.abortController.abort();
+    this.unlistenDrop?.();
   }
 
   render(
@@ -437,6 +519,7 @@ export default class Batch extends Component<Props, State> {
       running,
       doneCount,
       completedSignature,
+      dragging,
     }: State,
   ) {
     const EncoderOptions = (encoderMap[encoderType] as any).Options;
@@ -452,7 +535,7 @@ export default class Batch extends Component<Props, State> {
 
     return (
       <div
-        class={style.batch}
+        class={`${style.batch}${dragging ? ` ${style.dragging}` : ''}`}
         onDragOver={this.onDragOver}
         onDrop={this.onDrop}
       >
@@ -538,7 +621,7 @@ export default class Batch extends Component<Props, State> {
             Choose output folder…
           </button>
           <p class={style.path} title={outputFolder || ''}>
-            {outputFolder || 'No folder chosen'}
+            {outputFolder || 'No folder — saved next to each original'}
           </p>
 
           <label class={style.field}>
@@ -658,7 +741,7 @@ export default class Batch extends Component<Props, State> {
               <button
                 class={`${style.button} ${style.primary}`}
                 onClick={this.onStartClick}
-                disabled={total === 0 || !outputFolder || justCompleted}
+                disabled={total === 0 || !this.canWrite() || justCompleted}
               >
                 Start
               </button>

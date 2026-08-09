@@ -73,6 +73,44 @@ fn list_images(dir: String, recursive: bool) -> Result<Vec<ImageEntry>, String> 
     Ok(out)
 }
 
+#[derive(Serialize)]
+struct DropResult {
+    /// Image files found among the dropped paths (folders expanded).
+    images: Vec<ImageEntry>,
+    /// Absolute paths of the dropped entries that were folders.
+    folders: Vec<String>,
+}
+
+/// Classify a set of dropped paths (files and/or folders) into image entries and
+/// the folder roots. Native OS drag-drop hands us a flat list of absolute paths.
+#[tauri::command]
+fn collect_dropped(paths: Vec<String>, recursive: bool) -> Result<DropResult, String> {
+    let mut images = Vec::new();
+    let mut folders = Vec::new();
+    for p in paths {
+        let path = Path::new(&p);
+        if path.is_dir() {
+            folders.push(p.clone());
+            collect(path, path, recursive, &mut images).map_err(|e| e.to_string())?;
+        } else if path.is_file() && is_image(path) {
+            // rel = file name (its parent acts as the root), mirroring a single add.
+            let name = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or_default()
+                .to_string();
+            let size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
+            images.push(ImageEntry {
+                path: p.clone(),
+                name: name.clone(),
+                size,
+                rel: name,
+            });
+        }
+    }
+    Ok(DropResult { images, folders })
+}
+
 /// Read a file's raw bytes (returned efficiently as an ArrayBuffer to JS).
 #[tauri::command]
 fn read_file(path: String) -> Result<Response, String> {
@@ -102,6 +140,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             list_images,
+            collect_dropped,
             read_file,
             write_file,
             path_exists
