@@ -58,8 +58,48 @@ export function getSharedImage(): Promise<File> {
   });
 }
 
+/**
+ * Are we running inside the native desktop app (Tauri) rather than a browser?
+ */
+function isTauri(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    ('__TAURI_INTERNALS__' in window ||
+      '__TAURI__' in window ||
+      (window as any).isTauri === true)
+  );
+}
+
+/** Unregister any service workers and drop their caches. */
+async function unregisterServiceWorkers() {
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    const regs = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(regs.map((reg) => reg.unregister()));
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((key) => caches.delete(key)));
+    }
+  } catch (err) {
+    // Best effort – nothing we can do if cleanup fails.
+  }
+}
+
 /** Set up the service worker and monitor changes */
 export async function offliner(showSnack: SnackBarElement['showSnackbar']) {
+  // In the native desktop app (Tauri) the assets are already bundled locally, so
+  // the service worker adds no value and its cache causes stale UI after updates.
+  // Skip registration and clean up any worker a previous desktop build left behind.
+  if (isTauri()) {
+    const hadController =
+      'serviceWorker' in navigator && !!navigator.serviceWorker.controller;
+    await unregisterServiceWorkers();
+    // If a stale worker was controlling this page, reload once to load fresh
+    // assets. After the reload there's no controller, so this won't loop.
+    if (hadController) location.reload();
+    return;
+  }
+
   if (__PRODUCTION__) navigator.serviceWorker.register(swUrl);
 
   const hasController = !!navigator.serviceWorker.controller;
