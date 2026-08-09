@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import { open } from '@tauri-apps/plugin-dialog';
+import { open, save } from '@tauri-apps/plugin-dialog';
 
 export interface ImageEntry {
   /** Absolute path on disk. */
@@ -17,6 +17,11 @@ export async function pickFolder(title: string): Promise<string | null> {
   const result = await open({ directory: true, multiple: false, title });
   if (result == null) return null;
   return Array.isArray(result) ? result[0] : result;
+}
+
+/** Show a native "save file" dialog. Returns the chosen path, or null. */
+export function saveFileDialog(defaultName: string): Promise<string | null> {
+  return save({ defaultPath: defaultName });
 }
 
 /** List image files in a folder (optionally recursing). */

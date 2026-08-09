@@ -6,6 +6,7 @@ import 'shared/custom-els/loading-spinner';
 import { SourceImage } from '../';
 import prettyBytes from './pretty-bytes';
 import { Arrow, DownloadIcon } from 'client/lazy-app/icons';
+import { isTauri } from 'shared/tauri';
 
 interface Props {
   loading: boolean;
@@ -44,7 +45,19 @@ export default class Results extends Component<Props, State> {
     }
   }
 
-  private onDownload = () => {
+  private onDownload = (event: Event) => {
+    // In the desktop app an <a download href="blob:…"> doesn't trigger a save,
+    // so write the file through a native dialog + Tauri command instead.
+    if (isTauri()) {
+      event.preventDefault();
+      this.saveViaTauri();
+      return;
+    }
+    this.trackDownload();
+  };
+
+  private trackDownload() {
+    if (typeof ga !== 'function') return;
     // GA can’t do floats. So we round to ints. We're deliberately rounding to nearest kilobyte to
     // avoid cases where exact image sizes leak something interesting about the user.
     const before = Math.round(this.props.source!.file.size / 1024);
@@ -56,7 +69,23 @@ export default class Results extends Component<Props, State> {
       metric2: after,
       metric3: change,
     });
-  };
+  }
+
+  private async saveViaTauri() {
+    const file = this.props.imageFile;
+    if (!file) return;
+    try {
+      const { saveFileDialog, writeFileBytes } = await import(
+        'client/lazy-app/tauri'
+      );
+      const path = await saveFileDialog(file.name);
+      if (!path) return; // cancelled
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      await writeFileBytes(path, bytes);
+    } catch (err) {
+      console.error('Failed to save image', err);
+    }
+  }
 
   render(
     { source, imageFile, downloadUrl, flipSide, typeLabel }: Props,
