@@ -128,13 +128,24 @@
 }
 
 .settings {
-  overflow: auto;
+  /* Scroll vertically only; long paths / controls must not push a horizontal
+     scrollbar. min-width:0 lets this grid column's content shrink to fit. */
+  overflow-x: hidden;
+  overflow-y: auto;
+  min-width: 0;
   padding: 1.5rem;
   background: var(--off-black);
   color: var(--white);
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
+}
+
+/* Direct children fill the panel and are allowed to shrink below their
+   content's intrinsic width (prevents flex/grid overflow). */
+.settings > * {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .settings-title {
@@ -165,6 +176,8 @@
     border: 1px solid #555;
     background: #2a2a2a;
     color: var(--white);
+    box-sizing: border-box;
+    max-width: 100%;
   }
 }
 
