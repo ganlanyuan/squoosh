@@ -140,6 +140,12 @@ fn open_url(url: String) -> Result<(), String> {
     open::that(url).map_err(|e| e.to_string())
 }
 
+/// Quit the application (used by the Ctrl/Cmd+W shortcut).
+#[tauri::command]
+fn close_app(app: tauri::AppHandle) {
+    app.exit(0);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -150,7 +156,8 @@ pub fn run() {
             read_file,
             write_file,
             path_exists,
-            open_url
+            open_url,
+            close_app
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

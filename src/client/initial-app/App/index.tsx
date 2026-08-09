@@ -54,8 +54,10 @@ export default class App extends Component<Props, State> {
   snackbar?: SnackBarElement;
   private unlistenDrop?: () => void;
   /** The mounted Batch instance, for forwarding drops while it's open. */
-  private batchInstance: { handleDroppedPaths(paths: string[]): void } | null =
-    null;
+  private batchInstance: {
+    handleDroppedPaths(paths: string[]): void;
+    isRunning(): boolean;
+  } | null = null;
 
   constructor() {
     super();
@@ -90,6 +92,7 @@ export default class App extends Component<Props, State> {
   }
 
   componentDidMount() {
+    window.addEventListener('keydown', this.onKeyDown);
     // In the desktop app the window uses native OS drag-drop (dragDropEnabled),
     // so the HTML5 <file-drop> below never fires there — wire up native drops.
     if (isTauri()) {
@@ -104,8 +107,65 @@ export default class App extends Component<Props, State> {
   }
 
   componentWillUnmount() {
+    window.removeEventListener('keydown', this.onKeyDown);
     this.unlistenDrop?.();
   }
+
+  /** Whether a batch is currently processing images. */
+  private isBatchRunning(): boolean {
+    return this.state.isBatchOpen && !!this.batchInstance?.isRunning();
+  }
+
+  private confirmIfRunning = async (message: string): Promise<boolean> => {
+    if (!this.isBatchRunning()) return true;
+    try {
+      const { confirmDialog } = await import('client/lazy-app/tauri');
+      return await confirmDialog(message);
+    } catch {
+      return true;
+    }
+  };
+
+  private onKeyDown = (event: KeyboardEvent) => {
+    // Ctrl/Cmd+W → quit the desktop app (confirm if a batch is processing).
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'w') {
+      if (!isTauri()) return;
+      event.preventDefault();
+      this.requestCloseApp();
+      return;
+    }
+    // Esc → leave the editor/batch and return to the intro screen.
+    if (event.key === 'Escape') {
+      if (this.state.isBatchOpen) {
+        event.preventDefault();
+        this.requestLeaveBatch();
+      } else if (this.state.isEditorOpen) {
+        event.preventDefault();
+        back();
+      }
+    }
+  };
+
+  private requestCloseApp = async () => {
+    if (
+      !(await this.confirmIfRunning(
+        'A batch is still processing. Quit anyway?',
+      ))
+    )
+      return;
+    const { closeApp } = await import('client/lazy-app/tauri');
+    await closeApp();
+  };
+
+  private requestLeaveBatch = async () => {
+    if (
+      !(await this.confirmIfRunning(
+        'A batch is still processing. Leave and stop it?',
+      ))
+    )
+      return;
+    this.closeBatch();
+  };
 
   private onNativeDragEnter = () => {
     this.setState({ dragging: true });

@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import { open, save } from '@tauri-apps/plugin-dialog';
+import { open, save, confirm } from '@tauri-apps/plugin-dialog';
 
 const IMAGE_EXTS = [
   'jpg',
@@ -108,4 +108,14 @@ export function pathExists(path: string): Promise<boolean> {
 /** Open a URL in the OS default browser (rather than the app webview). */
 export function openExternal(url: string): Promise<void> {
   return invoke('open_url', { url });
+}
+
+/** Native yes/no confirmation dialog. Resolves true if the user confirms. */
+export function confirmDialog(message: string): Promise<boolean> {
+  return confirm(message, { title: 'Squoosh', kind: 'warning' });
+}
+
+/** Quit the desktop app. */
+export function closeApp(): Promise<void> {
+  return invoke('close_app');
 }

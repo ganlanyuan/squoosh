@@ -116,6 +116,9 @@ export default class Batch extends Component<Props, State> {
     this.onNativeDrop(paths);
   };
 
+  /** Whether a batch is currently processing (App checks before closing). */
+  isRunning = () => this.state.running;
+
   private onNativeDrop = async (paths: string[]) => {
     if (this.state.running) return;
     try {

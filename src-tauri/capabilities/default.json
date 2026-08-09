@@ -3,5 +3,10 @@
   "identifier": "default",
   "description": "enables the default permissions",
   "windows": ["main"],
-  "permissions": ["core:default", "dialog:default", "dialog:allow-save"]
+  "permissions": [
+    "core:default",
+    "dialog:default",
+    "dialog:allow-save",
+    "dialog:allow-confirm"
+  ]
 }
