@@ -58,6 +58,10 @@ interface State {
   suffix: string;
   running: boolean;
   doneCount: number;
+  /** Snapshot of inputs+settings taken when a batch finishes; null unless in a
+   * completed state. While it still matches the current inputs, Start stays
+   * disabled to prevent an accidental re-run overwriting the outputs. */
+  completedSignature: string | null;
 }
 
 const MAX_WORKERS = Math.min(4, navigator.hardwareConcurrency || 4);
@@ -72,6 +76,8 @@ let nextId = 0;
 export default class Batch extends Component<Props, State> {
   private fileInput?: HTMLInputElement;
   private abortController = new AbortController();
+  /** settingsSignature() from the last run; used to decide whole vs partial re-run. */
+  private lastRunSettings: string | null = null;
 
   state: State = {
     items: [],
@@ -87,7 +93,42 @@ export default class Batch extends Component<Props, State> {
     suffix: '',
     running: false,
     doneCount: 0,
+    completedSignature: null,
   };
+
+  private settingsSignature(): string {
+    const {
+      encoderType,
+      encoderOptions,
+      resizePercent,
+      quantizeEnabled,
+      quantizeOptions,
+      outputFolder,
+      suffix,
+      preserveStructure,
+      recursive,
+      skipExisting,
+    } = this.state;
+    return JSON.stringify({
+      encoderType,
+      encoderOptions,
+      resizePercent,
+      quantizeEnabled,
+      quantizeOptions,
+      outputFolder,
+      suffix,
+      preserveStructure,
+      recursive,
+      skipExisting,
+    });
+  }
+
+  private currentSignature(): string {
+    return JSON.stringify({
+      ids: this.state.items.map((it) => it.id),
+      settings: this.settingsSignature(),
+    });
+  }
 
   private onAddFilesClick = () => this.fileInput!.click();
 
@@ -226,7 +267,8 @@ export default class Batch extends Component<Props, State> {
 
   private onClearClick = () => {
     if (this.state.running) return;
-    this.setState({ items: [], doneCount: 0 });
+    this.lastRunSettings = null;
+    this.setState({ items: [], doneCount: 0, completedSignature: null });
   };
 
   private onEncoderTypeChange = (event: Event) => {
@@ -289,16 +331,29 @@ export default class Batch extends Component<Props, State> {
     const signal = this.abortController.signal;
     const settings = this.buildSettings();
 
-    // Reset any prior results so the whole list runs again.
+    // Settings change → redo the whole batch; otherwise only process the newly
+    // added (still-queued) items and leave finished ones as they are.
+    const settingsSig = this.settingsSignature();
+    const redoAll =
+      this.lastRunSettings !== null && this.lastRunSettings !== settingsSig;
+    this.lastRunSettings = settingsSig;
+
+    // Decide the work up front so we don't depend on setState having flushed.
+    const toProcess = redoAll
+      ? this.state.items
+      : this.state.items.filter((it) => it.status === 'queued');
+
     this.setState((state) => ({
       running: true,
-      doneCount: 0,
-      items: state.items.map((it) => ({
-        ...it,
-        status: 'queued',
-        outputSize: undefined,
-        error: undefined,
-      })),
+      doneCount: state.items.length - toProcess.length,
+      items: redoAll
+        ? state.items.map((it) => ({
+            ...it,
+            status: 'queued',
+            outputSize: undefined,
+            error: undefined,
+          }))
+        : state.items,
     }));
 
     const bridges = Array.from(
@@ -310,7 +365,7 @@ export default class Batch extends Component<Props, State> {
     const runOne = async (bridge: WorkerBridge): Promise<void> => {
       while (!signal.aborted) {
         const index = cursor++;
-        const item = this.state.items[index];
+        const item = toProcess[index];
         if (!item) return;
 
         this.setItem(item.id, { status: 'processing' });
@@ -341,8 +396,13 @@ export default class Batch extends Component<Props, State> {
     } finally {
       if (!signal.aborted) {
         this.props.showSnack('Batch complete', { timeout: 4000 });
+        this.setState({
+          running: false,
+          completedSignature: this.currentSignature(),
+        });
+      } else {
+        this.setState({ running: false });
       }
-      this.setState({ running: false });
     }
   };
 
@@ -376,10 +436,14 @@ export default class Batch extends Component<Props, State> {
       suffix,
       running,
       doneCount,
+      completedSignature,
     }: State,
   ) {
     const EncoderOptions = (encoderMap[encoderType] as any).Options;
     const total = items.length;
+    const justCompleted =
+      completedSignature !== null &&
+      completedSignature === this.currentSignature();
     const savedTotal = items.reduce(
       (sum, it) =>
         it.outputSize != null ? sum + (it.size - it.outputSize) : sum,
@@ -594,7 +658,7 @@ export default class Batch extends Component<Props, State> {
               <button
                 class={`${style.button} ${style.primary}`}
                 onClick={this.onStartClick}
-                disabled={total === 0 || !outputFolder}
+                disabled={total === 0 || !outputFolder || justCompleted}
               >
                 Start
               </button>

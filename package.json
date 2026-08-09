@@ -6,9 +6,10 @@
   "scripts": {
     "build": "rollup -c && node lib/move-output.js",
     "debug": "node --inspect-brk node_modules/.bin/rollup -c",
+    "predev": "node -e \"require('fs').rmSync('.tmp/build/static/index.html',{force:true})\"",
     "dev": "run-p watch serve",
     "watch": "rollup -cw",
-    "serve": "serve --listen=5000 --config serve.json .tmp/build/static",
+    "serve": "node lib/wait-for-build.js && serve --listen=5000 --config serve.json .tmp/build/static",
     "tauri": "tauri",
     "app:dev": "tauri dev",
     "app:build": "tauri build",
