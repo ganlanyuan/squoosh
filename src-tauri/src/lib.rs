@@ -146,6 +146,24 @@ fn close_app(app: tauri::AppHandle) {
     app.exit(0);
 }
 
+/// Show/update/clear the taskbar (Windows) / dock (macOS) progress overlay.
+/// `progress` is 0–100; `None` hides the bar.
+#[tauri::command]
+fn set_progress(window: tauri::Window, progress: Option<u64>) -> Result<(), String> {
+    use tauri::window::{ProgressBarState, ProgressBarStatus};
+    let state = match progress {
+        Some(p) => ProgressBarState {
+            status: Some(ProgressBarStatus::Normal),
+            progress: Some(p.min(100)),
+        },
+        None => ProgressBarState {
+            status: Some(ProgressBarStatus::None),
+            progress: None,
+        },
+    };
+    window.set_progress_bar(state).map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -157,7 +175,8 @@ pub fn run() {
             write_file,
             path_exists,
             open_url,
-            close_app
+            close_app,
+            set_progress
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

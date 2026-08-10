@@ -119,3 +119,10 @@ export function confirmDialog(message: string): Promise<boolean> {
 export function closeApp(): Promise<void> {
   return invoke('close_app');
 }
+
+/** Show batch progress (0–100) on the taskbar/dock icon; null clears it. */
+export function setTaskbarProgress(percent: number | null): Promise<void> {
+  const progress =
+    percent === null ? null : Math.round(Math.max(0, Math.min(100, percent)));
+  return invoke('set_progress', { progress });
+}

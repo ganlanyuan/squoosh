@@ -20,6 +20,7 @@ import {
   readFileBytes,
   writeFileBytes,
   pathExists,
+  setTaskbarProgress,
 } from '../tauri';
 import { isTauri } from 'shared/tauri';
 import { getLastDir, setLastDir, dirOf } from 'shared/last-dir';
@@ -108,6 +109,23 @@ export default class Batch extends Component<Props, State> {
     // (doing so mid-drop froze WebView2). Just queue the drop that opened us.
     if (isTauri() && this.props.initialPaths?.length) {
       this.onNativeDrop(this.props.initialPaths);
+    }
+  }
+
+  componentDidUpdate(_prevProps: Props, prevState: State) {
+    // Mirror batch progress on the taskbar (Windows) / dock (macOS) icon.
+    if (!isTauri()) return;
+    const total = this.state.items.length;
+    const { running, doneCount } = this.state;
+    const changed =
+      prevState.running !== running ||
+      prevState.doneCount !== doneCount ||
+      prevState.items.length !== total;
+    if (!changed) return;
+    if (running) {
+      setTaskbarProgress(total ? (doneCount / total) * 100 : 0);
+    } else if (prevState.running) {
+      setTaskbarProgress(null); // just finished or cancelled → clear
     }
   }
 
@@ -536,6 +554,8 @@ export default class Batch extends Component<Props, State> {
 
   componentWillUnmount() {
     this.abortController.abort();
+    // Don't leave a stuck progress overlay if we leave mid-run.
+    if (isTauri()) setTaskbarProgress(null);
   }
 
   render(
