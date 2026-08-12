@@ -3,7 +3,7 @@
 }
 
 .builtin-select {
-  background: var(--black);
+  background: var(--options-field-bg, var(--black));
   border-radius: 4px;
   font: inherit;
   padding: 7px 0;
@@ -11,8 +11,8 @@
   padding-left: 10px;
   -webkit-appearance: none;
   -moz-appearance: none;
-  border: none;
-  color: #fff;
+  border: 1px solid var(--options-field-border, transparent);
+  color: var(--options-fg, #fff);
   width: 100%;
 }
 
@@ -21,7 +21,7 @@
   right: 8px;
   top: 50%;
   transform: translateY(-50%);
-  fill: #fff;
+  fill: var(--options-fg, #fff);
   width: 10px;
   pointer-events: none;
 }

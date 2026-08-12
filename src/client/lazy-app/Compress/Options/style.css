@@ -54,7 +54,7 @@
   grid-template-columns: auto 1fr;
   gap: 1em;
 
-  border-top: 1px solid #fff4;
+  /*border-top: 1px solid #fff4;*/
 
   transition-property: background-color;
   transition-duration: 250ms;
@@ -62,7 +62,7 @@
 
 .option-reveal:focus-within,
 .option-reveal:hover {
-  background-color: #fff2;
+  background-color: var(--options-reveal-hover, #fff2);
 }
 
 .option-one-cell {
@@ -79,7 +79,7 @@
 }
 
 .options-section {
-  background: var(--off-black);
+  background: var(--options-bg, var(--off-black));
 }
 
 .text-field {

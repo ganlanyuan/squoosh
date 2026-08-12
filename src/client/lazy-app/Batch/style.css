@@ -3,9 +3,13 @@
   display: grid;
   grid-template-columns: 1fr minmax(320px, 380px);
   overflow: hidden;
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   background: var(--white);
   color: var(--off-black);
+  /* Same purple accent as the intro/main page. */
+  --accent: #7b4bce;
+  /* Theme the embedded encoder/quantize Options with the same accent. */
+  --main-theme-color: var(--accent);
 }
 
 .hide {
@@ -14,17 +18,17 @@
 
 .main {
   overflow: auto;
-  padding: 1.5rem 2rem;
+  padding: 2rem;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.2rem;
 }
 
-.header {
+/*.header {
   display: flex;
   align-items: center;
   gap: 1rem;
-}
+}*/
 
 .title {
   margin: 0;
@@ -33,25 +37,38 @@
 
 .back {
   composes: unbutton from global;
-  color: var(--dim-blue);
+  color: var(--accent);
   cursor: pointer;
-  font-size: 1.5rem;
+  font-size: 1.2rem;
+  margin-bottom: 1em;
+
+  &:hover {
+    text-decoration: underline;
+  }
 }
 
 .toolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: 0.9rem;
 }
 
+/* Pill button matching the intro's .batch-btn (outline that fills on hover). */
 .button {
   composes: unbutton from global;
-  background: var(--light-gray);
-  color: var(--off-black);
-  border-radius: 0.5rem;
-  padding: 0.6rem 1.1rem;
+  color: var(--accent);
+  background: transparent;
+  border: 1.5px solid var(--accent);
+  border-radius: 100px;
+  padding: 0.5rem 1.3rem;
   cursor: pointer;
-  font-size: 1.4rem;
+  font-size: 1.2rem;
+  transition: background-color 150ms ease, color 150ms ease;
+
+  &:hover:not(:disabled) {
+    background: var(--accent);
+    color: var(--white);
+  }
 
   &:disabled {
     opacity: 0.5;
@@ -60,8 +77,14 @@
 }
 
 .primary {
-  background: var(--deep-blue);
+  background: var(--accent);
+  border-color: var(--accent);
   color: var(--white);
+
+  &:hover:not(:disabled) {
+    filter: brightness(0.92);
+    color: var(--white);
+  }
 }
 
 .empty {
@@ -74,7 +97,6 @@
   padding: 0;
   border: 1px solid var(--light-gray);
   border-radius: 0.5rem;
-  overflow: hidden;
 }
 
 .item {
@@ -83,7 +105,7 @@
   align-items: center;
   gap: 1rem;
   padding: 0.6rem 1rem;
-  font-size: 1.4rem;
+  font-size: 1.2rem;
 
   &:nth-child(even) {
     background: #f5f5f5;
@@ -118,7 +140,7 @@
   color: #c0392b;
 }
 .processing {
-  color: var(--dim-blue);
+  color: var(--accent);
 }
 .skipped {
   color: var(--dark-gray);
@@ -134,11 +156,20 @@
   overflow-y: auto;
   min-width: 0;
   padding: 1.5rem;
-  background: var(--off-black);
-  color: var(--white);
+  background: var(--white);
+  color: var(--off-black);
+  border-left: 1px solid var(--light-gray);
   display: flex;
   flex-direction: column;
-  gap: 0.9rem;
+  gap: 1.1rem;
+
+  /* Re-theme the embedded encoder/quantize Options (quality, advanced) for the
+     light panel. These override dark defaults baked into Compress/Options. */
+  --options-bg: transparent;
+  --options-fg: var(--off-black);
+  --options-field-bg: var(--white);
+  --options-field-border: var(--light-gray);
+  --options-reveal-hover: rgba(0, 0, 0, 0.04);
 }
 
 /* Direct children fill the panel and are allowed to shrink below their
@@ -151,14 +182,15 @@
 .settings-title {
   margin: 0.5rem 0 0;
   font-size: 1.6rem;
-  border-bottom: 1px solid #3a3a3a;
+  font-weight: 700;
+  border-bottom: 1px solid var(--light-gray);
   padding-bottom: 0.4rem;
 }
 
 .path {
   margin: 0;
   font-size: 1.2rem;
-  color: var(--medium-light-gray);
+  color: var(--dark-gray);
   word-break: break-all;
 }
 
@@ -170,14 +202,21 @@
 
   & input,
   & select {
-    font-size: 1.4rem;
-    padding: 0.4rem;
-    border-radius: 0.4rem;
-    border: 1px solid #555;
-    background: #2a2a2a;
-    color: var(--white);
+    font-size: 1.2rem;
+    padding: 0.5rem 0.6rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--light-gray);
+    background: var(--white);
+    color: var(--off-black);
     box-sizing: border-box;
     max-width: 100%;
+
+    &:focus {
+      outline: none;
+      border-color: var(--accent);
+      /* Accent (#7b4bce) at 25% — literal rgba since cssnano 4 predates color-mix. */
+      box-shadow: 0 0 0 3px rgba(123, 75, 206, 0.25);
+    }
   }
 }
 
@@ -194,8 +233,15 @@
 .check {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.6rem;
   font-size: 1.3rem;
+
+  & input[type='checkbox'] {
+    accent-color: var(--accent);
+    width: 1.1rem;
+    height: 1.1rem;
+    cursor: pointer;
+  }
 }
 
 .run {
@@ -203,13 +249,13 @@
   padding-top: 1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.9rem;
 }
 
 .progress {
   position: relative;
   height: 1.8rem;
-  background: #2a2a2a;
+  background: var(--light-gray);
   border-radius: 0.9rem;
   overflow: hidden;
 }
@@ -217,7 +263,7 @@
 .progress-bar {
   position: absolute;
   inset: 0 auto 0 0;
-  background: var(--deep-blue);
+  background: var(--accent);
   transition: width 200ms ease;
 }
 
@@ -227,4 +273,5 @@
   text-align: center;
   font-size: 1.2rem;
   line-height: 1.8rem;
+  color: var(--off-black);
 }
