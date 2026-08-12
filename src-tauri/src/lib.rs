@@ -164,6 +164,24 @@ fn set_progress(window: tauri::Window, progress: Option<u64>) -> Result<(), Stri
     window.set_progress_bar(state).map_err(|e| e.to_string())
 }
 
+/// Download, install and relaunch into the available update (triggered by the
+/// in-app "Update & restart" prompt). Re-checks so we don't have to hold the
+/// non-Send `Update` handle across the IPC boundary.
+#[cfg(desktop)]
+#[tauri::command]
+async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
+    use tauri_plugin_updater::UpdaterExt;
+    let updater = app.updater().map_err(|e| e.to_string())?;
+    if let Some(update) = updater.check().await.map_err(|e| e.to_string())? {
+        update
+            .download_and_install(|_, _| {}, || {})
+            .await
+            .map_err(|e| e.to_string())?;
+        app.restart();
+    }
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -176,7 +194,8 @@ pub fn run() {
             path_exists,
             open_url,
             close_app,
-            set_progress
+            set_progress,
+            install_update
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {
@@ -186,6 +205,29 @@ pub fn run() {
                         .build(),
                 )?;
             }
+
+            // Self-updater (desktop only). Register the plugin, then in release
+            // builds check for an update on launch and notify the UI, which
+            // offers a "Update & restart" prompt (-> install_update command).
+            #[cfg(desktop)]
+            {
+                app.handle()
+                    .plugin(tauri_plugin_updater::Builder::new().build())?;
+
+                if !cfg!(debug_assertions) {
+                    let handle = app.handle().clone();
+                    tauri::async_runtime::spawn(async move {
+                        use tauri::Emitter;
+                        use tauri_plugin_updater::UpdaterExt;
+                        if let Ok(updater) = handle.updater() {
+                            if let Ok(Some(update)) = updater.check().await {
+                                let _ = handle.emit("update-available", update.version.clone());
+                            }
+                        }
+                    });
+                }
+            }
+
             Ok(())
         })
         .run(tauri::generate_context!())

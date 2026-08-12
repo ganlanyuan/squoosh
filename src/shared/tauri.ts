@@ -41,3 +41,15 @@ export async function listenNativeDrop(
   ]);
   return () => unlisteners.forEach((unlisten) => unlisten());
 }
+
+/**
+ * Listen for the Rust-side "update-available" event (emitted on launch when a
+ * newer signed release is found). Returns an unlisten function. Dynamically
+ * imports the event API so it stays out of the eager web bundle.
+ */
+export async function onUpdateAvailable(
+  callback: (version: string) => void,
+): Promise<() => void> {
+  const { listen } = await import('@tauri-apps/api/event');
+  return listen<string>('update-available', (event) => callback(event.payload));
+}

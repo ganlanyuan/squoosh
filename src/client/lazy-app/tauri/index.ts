@@ -120,6 +120,11 @@ export function closeApp(): Promise<void> {
   return invoke('close_app');
 }
 
+/** Download, install and relaunch into the available update. */
+export function installUpdate(): Promise<void> {
+  return invoke('install_update');
+}
+
 /** Show batch progress (0–100) on the taskbar/dock icon; null clears it. */
 export function setTaskbarProgress(percent: number | null): Promise<void> {
   const progress =

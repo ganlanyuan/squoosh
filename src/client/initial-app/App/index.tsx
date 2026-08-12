@@ -5,7 +5,7 @@ import type { SnackOptions } from 'shared/custom-els/snack-bar';
 import { h, Component } from 'preact';
 
 import { linkRef } from 'shared/prerendered-app/util';
-import { isTauri, listenNativeDrop } from 'shared/tauri';
+import { isTauri, listenNativeDrop, onUpdateAvailable } from 'shared/tauri';
 import { getLastDir, setLastDir, dirOf } from 'shared/last-dir';
 import * as style from './style.css';
 import 'add-css:./style.css';
@@ -53,6 +53,7 @@ export default class App extends Component<Props, State> {
 
   snackbar?: SnackBarElement;
   private unlistenDrop?: () => void;
+  private unlistenUpdate?: () => void;
   /** The mounted Batch instance, for forwarding drops while it's open. */
   private batchInstance: {
     handleDroppedPaths(paths: string[]): void;
@@ -103,13 +104,33 @@ export default class App extends Component<Props, State> {
       }).then((unlisten) => {
         this.unlistenDrop = unlisten;
       });
+      onUpdateAvailable(this.onUpdateAvailable).then((unlisten) => {
+        this.unlistenUpdate = unlisten;
+      });
     }
   }
 
   componentWillUnmount() {
     window.removeEventListener('keydown', this.onKeyDown);
     this.unlistenDrop?.();
+    this.unlistenUpdate?.();
   }
+
+  // A newer signed release was found on launch — offer a 1-click update.
+  private onUpdateAvailable = async (version: string) => {
+    const action = await this.showSnack(`Squoosh ${version} is available`, {
+      actions: ['Update & restart', 'Later'],
+      timeout: 0,
+    });
+    if (action !== 'Update & restart') return;
+    this.showSnack('Downloading update…', { timeout: 0 });
+    try {
+      const { installUpdate } = await import('client/lazy-app/tauri');
+      await installUpdate(); // app relaunches on success; only returns on failure
+    } catch (err) {
+      this.showSnack('Update failed — try again later');
+    }
+  };
 
   /** Whether a batch is currently processing images. */
   private isBatchRunning(): boolean {
