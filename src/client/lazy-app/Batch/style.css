@@ -24,11 +24,11 @@
   gap: 1.2rem;
 }
 
-/*.header {
+.header {
   display: flex;
-  align-items: center;
-  gap: 1rem;
-}*/
+  flex-direction: column;
+  align-items: flex-start;
+}
 
 .title {
   margin: 0;
