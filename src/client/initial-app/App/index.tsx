@@ -235,24 +235,52 @@ export default class App extends Component<Props, State> {
     this.setState({ file });
   };
 
-  // Native "select an image" for the desktop app: remembers the folder and
-  // reads the chosen file from disk (the HTML file input can't do either).
+  // Native "select an image/folder" for the desktop app: remembers the folder
+  // and reads the chosen file(s) from disk (the HTML file input can't do
+  // either). Picking one image opens the editor; picking several routes to
+  // batch mode. (Folders can't be chosen from a file dialog — they come in via
+  // drag-drop or Batch's own "Add folder" button.)
   private onIntroOpenNative = async () => {
     try {
       const { openImages, readFileBytes } = await import(
         'client/lazy-app/tauri'
       );
-      const [path] = await openImages({
-        multiple: false,
+      const paths = await openImages({
+        multiple: true,
         defaultPath: getLastDir('source'),
       });
-      if (!path) return;
-      setLastDir('source', dirOf(path));
+      if (paths.length === 0) return;
+      setLastDir('source', dirOf(paths[0]));
+      // Multiple images → batch mode; a single image → edit it.
+      if (paths.length > 1) {
+        this.setState({ pendingBatchPaths: paths });
+        this.openBatch();
+        return;
+      }
+      const path = paths[0];
       const bytes = await readFileBytes(path);
       const name = path.split(/[\\/]/).pop() || 'image';
       this.onIntroPickFile(new File([bytes], name));
     } catch (err) {
       this.showSnack("Couldn't open the image");
+    }
+  };
+
+  // Native "select folder(s)" for the desktop app: picks one or more folders
+  // of images and hands them to batch mode (folders are expanded recursively).
+  private onIntroPickFolder = async () => {
+    try {
+      const { pickFolders } = await import('client/lazy-app/tauri');
+      const dirs = await pickFolders(
+        'Choose folder(s) of images',
+        getLastDir('source'),
+      );
+      if (dirs.length === 0) return;
+      setLastDir('source', dirs[0]);
+      this.setState({ pendingBatchPaths: dirs });
+      this.openBatch();
+    } catch (err) {
+      this.showSnack("Couldn't open the folder");
     }
   };
 
@@ -346,8 +374,8 @@ export default class App extends Component<Props, State> {
           ) : (
             <Intro
               onFile={this.onIntroPickFile}
-              onBatch={this.openBatch}
               onPickImage={isTauri() ? this.onIntroOpenNative : undefined}
+              onPickFolder={isTauri() ? this.onIntroPickFolder : undefined}
               onExternalLink={isTauri() ? this.onExternalLink : undefined}
               showSnack={this.showSnack}
             />

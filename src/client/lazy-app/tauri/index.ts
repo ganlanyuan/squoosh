@@ -43,6 +43,21 @@ export async function pickFolder(
   return Array.isArray(result) ? result[0] : result;
 }
 
+/** Native folder picker allowing one or more folders. Returns chosen paths. */
+export async function pickFolders(
+  title: string,
+  defaultPath?: string,
+): Promise<string[]> {
+  const result = await open({
+    directory: true,
+    multiple: true,
+    title,
+    defaultPath,
+  });
+  if (result == null) return [];
+  return Array.isArray(result) ? result : [result];
+}
+
 /** Native image-file picker. Returns the chosen absolute path(s). */
 export async function openImages(opts: {
   multiple: boolean;

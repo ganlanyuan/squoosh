@@ -1,4 +1,4 @@
-import { h, Component } from 'preact';
+import { h, Component, Fragment } from 'preact';
 
 import { linkRef } from 'shared/prerendered-app/util';
 import '../../custom-els/loading-spinner';
@@ -13,7 +13,6 @@ import logoIcon from 'url:./imgs/demos/icon-demo-logo.png';
 import * as style from './style.css';
 import type SnackBarElement from 'shared/custom-els/snack-bar';
 import 'shared/custom-els/snack-bar';
-import { isTauri } from 'shared/tauri';
 
 const demos = [
   {
@@ -48,9 +47,10 @@ const demos = [
 
 interface Props {
   onFile?: (file: File) => void;
-  onBatch?: () => void;
   /** When set (desktop app), used instead of the HTML file input. */
   onPickImage?: () => void;
+  /** When set (desktop app), picks folder(s) of images for batch mode. */
+  onPickFolder?: () => void;
   /** When set (desktop app), opens external links in the OS browser. */
   onExternalLink?: (url: string) => void;
   showSnack?: SnackBarElement['showSnackbar'];
@@ -119,16 +119,22 @@ export default class Intro extends Component<Props, State> {
             height="360"
           />
           <h1 class={style.title}>
-            Drag &amp; drop or{' '}
+            Drag &amp; drop or select{' '}
             <button class={style.selectBtn} onClick={this.onOpenClick}>
-              select an image
+              image(s)
             </button>
+            {this.props.onPickFolder && (
+              <Fragment>
+                ,{' '}
+                <button
+                  class={style.selectBtn}
+                  onClick={this.props.onPickFolder}
+                >
+                  folder(s)
+                </button>
+              </Fragment>
+            )}
           </h1>
-          {isTauri() && this.props.onBatch && (
-            <button class={style.batchBtn} onClick={this.props.onBatch}>
-              Batch process a folder
-            </button>
-          )}
           <p class={style.demoTitle}>Or try one of these:</p>
           <ul class={style.demos}>
             {demos.map((demo, i) => (

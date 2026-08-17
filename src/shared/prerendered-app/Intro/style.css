@@ -11,7 +11,7 @@
   padding: 3rem 1.5rem;
   background: var(--white);
   color: var(--off-black);
-  --accent: #7b4bce;
+  --accent: #2563eb;
 }
 
 .hide {
@@ -48,24 +48,10 @@
   font: inherit;
   color: var(--accent);
   cursor: pointer;
+  white-space: nowrap;
 
   &:hover {
     text-decoration: underline;
-  }
-}
-
-.batch-btn {
-  composes: unbutton from global;
-  cursor: pointer;
-  border: 2px solid var(--accent);
-  color: var(--accent);
-  border-radius: 100px;
-  padding: 0.5rem 1.4rem;
-  font-size: 1.1rem;
-
-  &:hover {
-    background: var(--accent);
-    color: var(--white);
   }
 }
 

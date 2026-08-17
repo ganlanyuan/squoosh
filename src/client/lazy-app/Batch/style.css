@@ -6,8 +6,8 @@
   font-size: 1.2rem;
   background: var(--white);
   color: var(--off-black);
-  /* Same purple accent as the intro/main page. */
-  --accent: #7b4bce;
+  /* Same blue accent as the intro/main page. */
+  --accent: #2563eb;
   /* Theme the embedded encoder/quantize Options with the same accent. */
   --main-theme-color: var(--accent);
 }
@@ -214,8 +214,8 @@
     &:focus {
       outline: none;
       border-color: var(--accent);
-      /* Accent (#7b4bce) at 25% — literal rgba since cssnano 4 predates color-mix. */
-      box-shadow: 0 0 0 3px rgba(123, 75, 206, 0.25);
+      /* Accent (#2563eb) at 25% — literal rgba since cssnano 4 predates color-mix. */
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
     }
   }
 }
