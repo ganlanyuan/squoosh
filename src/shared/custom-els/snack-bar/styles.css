@@ -52,6 +52,50 @@ snack-bar {
   }
 }
 
+/* App-update reminder: single-row pill on a black background. Auto-sizes to its
+   content so the message and the "Update & restart" action share one row. */
+.update {
+  width: auto;
+  max-width: calc(100vw - 32px);
+  margin-left: 0;
+  left: 50%;
+  /* Center without margins so width can shrink-wrap the content. A fade-only
+     animation keeps this translate intact (the base scale/translateY keyframes
+     would otherwise clobber it). */
+  transform: translateX(-50%);
+  align-items: center;
+  background: #000;
+  border-radius: 20px;
+  box-shadow: none;
+  color: #fff;
+  font-weight: normal;
+  font-size: 14px;
+  animation: snackbar-update-show 300ms ease forwards 1;
+}
+.update[aria-hidden='true'] {
+  animation: snackbar-update-hide 300ms ease forwards 1;
+}
+@keyframes snackbar-update-show {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes snackbar-update-hide {
+  to {
+    opacity: 0;
+  }
+}
+
+.update .text {
+  color: #fff;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.update .button {
+  white-space: nowrap;
+  font-size: 14px;
+}
+
 .text {
   flex: 1 1 auto;
   padding: 16px;

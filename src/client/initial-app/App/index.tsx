@@ -121,6 +121,7 @@ export default class App extends Component<Props, State> {
     const action = await this.showSnack(`Squoosh ${version} is available`, {
       actions: ['Update & restart', 'Later'],
       timeout: 0,
+      variant: 'update',
     });
     if (action !== 'Update & restart') return;
     this.showSnack('Downloading update…', { timeout: 0 });

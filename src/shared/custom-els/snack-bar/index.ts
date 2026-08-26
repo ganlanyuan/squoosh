@@ -9,6 +9,9 @@ const HTMLEl = (__PRERENDER__
 export interface SnackOptions {
   timeout?: number;
   actions?: string[];
+  /** Optional style variant; adds the matching class from styles.css (e.g.
+   * 'update' for the app-update reminder). */
+  variant?: keyof typeof style;
 }
 
 function createSnack(
@@ -19,6 +22,9 @@ function createSnack(
 
   const el = document.createElement('div');
   el.className = style.snackbar;
+  if (options.variant && style[options.variant]) {
+    el.classList.add(style[options.variant]);
+  }
   el.setAttribute('aria-live', 'assertive');
   el.setAttribute('aria-atomic', 'true');
   el.setAttribute('aria-hidden', 'false');
