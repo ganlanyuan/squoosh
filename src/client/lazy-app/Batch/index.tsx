@@ -59,6 +59,10 @@ interface State {
   quantizeEnabled: boolean;
   quantizeOptions: typeof defaultProcessorState.quantize;
   outputFolder: string | null;
+  /** True only when the user explicitly picked an output folder (not auto-filled
+   * from the source). When false, outputs land in the source folder and can
+   * overwrite originals — so we surface a warning. */
+  outputFolderExplicit: boolean;
   recursive: boolean;
   preserveStructure: boolean;
   skipExisting: boolean;
@@ -94,6 +98,7 @@ export default class Batch extends Component<Props, State> {
     quantizeEnabled: false,
     quantizeOptions: defaultProcessorState.quantize,
     outputFolder: null,
+    outputFolderExplicit: false,
     recursive: true,
     preserveStructure: true,
     skipExisting: false,
@@ -360,7 +365,7 @@ export default class Batch extends Component<Props, State> {
       );
       if (dir) {
         setLastDir('output', dir);
-        this.setState({ outputFolder: dir });
+        this.setState({ outputFolder: dir, outputFolderExplicit: true });
       }
     } catch (err) {
       this.props.showSnack(`Couldn't choose folder: ${err}`);
@@ -568,6 +573,7 @@ export default class Batch extends Component<Props, State> {
       quantizeEnabled,
       quantizeOptions,
       outputFolder,
+      outputFolderExplicit,
       recursive,
       preserveStructure,
       skipExisting,
@@ -678,6 +684,14 @@ export default class Batch extends Component<Props, State> {
           <p class={style.path} title={outputFolder || ''}>
             {outputFolder || 'No folder — saved next to each original'}
           </p>
+          {!outputFolderExplicit && (
+            <p class={style.warning}>
+              ⚠️ No output folder chosen. Compressed images are saved next to
+              the originals and{' '}
+              <strong>the original files may be overwritten</strong> (unless a
+              filename suffix or a different format keeps the names distinct).
+            </p>
+          )}
 
           <label class={style.field}>
             Filename suffix

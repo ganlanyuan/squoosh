@@ -194,6 +194,21 @@
   word-break: break-all;
 }
 
+.warning {
+  margin: 0;
+  font-size: 1.1rem;
+  line-height: 1.35;
+  color: #92400e;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.7rem;
+
+  & strong {
+    font-weight: 700;
+  }
+}
+
 .field {
   display: flex;
   flex-direction: column;
